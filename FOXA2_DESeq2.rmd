@@ -1,0 +1,162 @@
+---
+title: "siFoxa2_RNA-seq"
+author: "Connor Rogerson"
+date: "15/12/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+Import count data from featureCounts
+```{r}
+countdata <- read.table("C:/Users/cjr78/OneDrive - University of Cambridge/Frezza/Data/RNA-seq/siFoxa2/featureCounts/siFoxa2_counts_mm10.txt", header=TRUE, row.names=1)
+```
+Tidy up file and extract gene length (for TPMs)
+```{r}
+colnames(countdata) <- gsub("\\.[sb]am$", "", colnames(countdata))
+colnames(countdata) <- gsub("_accepted_hits_filter", "", colnames(countdata))
+geneLength <- countdata[,5]
+countdata <- countdata[ ,6:ncol(countdata)] 
+head(countdata)
+```
+Generate TPM matrix
+```{r}
+x <- countdata / geneLength
+tpm <- t( t(x) * 1e6 / colSums(x) )
+write.table(as.data.frame(tpm), file="C:/Users/cjr78/OneDrive - University of Cambridge/Frezza/Data/RNA-seq/siFoxa2/DESeq2/TPMs.txt", sep = '\t', row.names = TRUE, col.names = TRUE)
+countdata <- as.matrix(countdata)
+```
+Assign conditions 
+```{r}
+(condition <- factor(c(rep("FLFL_siNT", 3), rep("FLFL_siFoxa2", 3), rep("CL1_siNT", 3), rep("CL1_siFoxa2",3), rep("CL19_siNT",3), rep("CL19_siFoxa2",3))))
+(coldata <- data.frame(row.names=colnames(countdata), condition))
+```
+Loads DESeq2
+```{r, echo=FALSE}
+library(DESeq2)
+library(EnhancedVolcano)
+library(clusterProfiler)
+library(org.Mm.eg.db)
+```
+
+```{r}
+dds <- DESeqDataSetFromMatrix(countData=countdata, colData=coldata, design=~condition)
+keep <- rowSums(counts(dds)) >= 10 ###filter genes with low counts
+dds <- dds[keep,]
+dds <- DESeq(dds)
+```
+FLFL siFoxa2 v FLFL siNT
+```{r}
+resFLFL <- results(dds, contrast=c("condition","FLFL_siFoxa2","FLFL_siNT"))
+resFLFLOrdered <- resFLFL[order(resFLFL$pvalue),]
+write.table(as.data.frame(resFLFLOrdered), file="C:/Users/cjr78/OneDrive - University of Cambridge/Frezza/Data/RNA-seq/siFoxa2/DESeq2/FLFL_siFoxa2_FLFL_siNT_allresults.txt", sep = '\t', row.names = TRUE, col.names = TRUE)
+ 
+resFLFLSig <- subset(resFLFLOrdered, padj < 0.05)
+write.table(as.data.frame(resFLFLSig), file="C:/Users/cjr78/OneDrive - University of Cambridge/Frezza/Data/RNA-seq/siFoxa2/DESeq2/FLFL_siFoxa2_FLFL_siNT_sigresults.txt", sep = '\t', row.names = TRUE, col.names = TRUE)
+
+(summary(resFLFL))
+plotMA(resFLFL, ylim = c(-5,5))
+```
+```{r}
+EnhancedVolcano(resFLFL, lab = NA, x = 'log2FoldChange', y = 'padj', col = c("grey", "grey", "grey", "red"), FCcutoff = 0.5, pCutoff = 0.05, raster = T, title = NULL, subtitle = NULL, legendPosition = "right")
+```
+
+
+CL1 siFoxa2 v CL1 siNT
+```{r}
+resCL1 <- results(dds, contrast=c("condition","CL1_siFoxa2","CL1_siNT"))
+resCL1Ordered <- resCL1[order(resCL1$pvalue),]
+write.table(as.data.frame(resCL1Ordered), file="C:/Users/cjr78/OneDrive - University of Cambridge/Frezza/Data/RNA-seq/siFoxa2/DESeq2/CL1_siFoxa2_CL1_siNT_allresults.txt", sep = '\t', row.names = TRUE, col.names = TRUE)
+ 
+resCL1Sig <- subset(resCL1Ordered, padj < 0.05)
+write.table(as.data.frame(resCL1Sig), file="C:/Users/cjr78/OneDrive - University of Cambridge/Frezza/Data/RNA-seq/siFoxa2/DESeq2/CL1_siFoxa2_CL1_siNT_sigresults.txt", sep = '\t', row.names = TRUE, col.names = TRUE)
+
+(summary(resCL1))
+plotMA(resCL1, ylim = c(-5,5))
+```
+```{r}
+EnhancedVolcano(resCL1, lab = NA, x = 'log2FoldChange', y = 'padj', col = c("grey", "grey", "grey", "red"), FCcutoff = 0.5, pCutoff = 0.05, raster = T, title = NULL, subtitle = NULL, legendPosition = "right")
+```
+
+
+CL19 siFoxa2 v CL1 siNT
+```{r}
+resCL19 <- results(dds, contrast=c("condition","CL19_siFoxa2","CL19_siNT"))
+resCL19Ordered <- resCL19[order(resCL19$pvalue),]
+write.table(as.data.frame(resCL19Ordered), file="C:/Users/cjr78/OneDrive - University of Cambridge/Frezza/Data/RNA-seq/siFoxa2/DESeq2/CL19_siFoxa2_CL19_siNT_allresults.txt", sep = '\t', row.names = TRUE, col.names = TRUE)
+
+resCL19Sig <- subset(resCL19Ordered, padj < 0.05)
+write.table(as.data.frame(resCL19Sig), file="C:/Users/cjr78/OneDrive - University of Cambridge/Frezza/Data/RNA-seq/siFoxa2/DESeq2/CL19_siFoxa2_CL19_siNT_sigresults.txt", sep = '\t', row.names = TRUE, col.names = TRUE)
+
+(summary(resCL19))
+plotMA(resCL19, ylim = c(-5,5))
+```
+```{r}
+EnhancedVolcano(resCL19, lab = NA, x = 'log2FoldChange', y = 'padj', col = c("grey", "grey", "grey", "red"), FCcutoff = 0.5, pCutoff = 0.05, raster = T, title = NULL, subtitle = NULL, legendPosition = "right")
+```
+
+GO term analysis
+
+```{r}
+#FLFL_DE_up <- as.character(rownames(subset(resFLFLSig, log2FoldChange >= 0.5)))
+#FLFL_DE_down <- as.character(rownames(subset(resFLFLSig, log2FoldChange <= -0.5)))
+writeLines(FLFL_DE_down, "C:/Users/cjr78/OneDrive - University of Cambridge/Frezza/Data/RNA-seq/siFoxa2/DESeq2/FLFL_DE_down.txt")
+writeLines(FLFL_DE_up, "C:/Users/cjr78/OneDrive - University of Cambridge/Frezza/Data/RNA-seq/siFoxa2/DESeq2/FLFL_DE_up.txt")
+
+#CL1_DE_up <- as.character(rownames(subset(resCL1Sig, log2FoldChange >= 0.5)))
+#CL1_DE_down <- as.character(rownames(subset(resCL1Sig, log2FoldChange <= -0.5)))
+writeLines(CL1_DE_down, "C:/Users/cjr78/OneDrive - University of Cambridge/Frezza/Data/RNA-seq/siFoxa2/DESeq2/CL1_DE_down.txt")
+writeLines(CL1_DE_up, "C:/Users/cjr78/OneDrive - University of Cambridge/Frezza/Data/RNA-seq/siFoxa2/DESeq2/CL1_DE_up.txt")
+
+#CL19_DE_up <- as.character(rownames(subset(resCL19Sig, log2FoldChange >= 0.5)))
+#CL19_DE_down <- as.character(rownames(subset(resCL19Sig, log2FoldChange <= -0.5)))
+writeLines(CL19_DE_down, "C:/Users/cjr78/OneDrive - University of Cambridge/Frezza/Data/RNA-seq/siFoxa2/DESeq2/CL19_DE_down.txt")
+writeLines(CL19_DE_up, "C:/Users/cjr78/OneDrive - University of Cambridge/Frezza/Data/RNA-seq/siFoxa2/DESeq2/CL19_DE_up.txt")
+
+CL1_CL19_down <-intersect(CL1_DE_down, CL19_DE_down)
+writeLines(CL1_CL19_down,"C:/Users/cjr78/OneDrive - University of Cambridge/Frezza/Data/RNA-seq/siFoxa2/DESeq2/CL1_CL19_down.txt")
+
+CL1_CL19_up <-intersect(CL1_DE_up, CL19_DE_up)
+writeLines(CL1_CL19_up,"C:/Users/cjr78/OneDrive - University of Cambridge/Frezza/Data/RNA-seq/siFoxa2/DESeq2/CL1_CL19_up.txt")
+
+CL1_CL19_DEGs <- append(CL1_CL19_down,CL1_CL19_up)
+
+geneList_CL1_CL19 <- list(I=CL1_CL19_down, II=CL1_CL19_up)
+#geneList <- list(I=CL1_DE_up, II=CL1_DE_down, III=CL19_DE_up, VI=CL19_DE_down)
+```
+
+```{r}
+#CL1_CL19_GO <- compareCluster(geneList, fun = "enrichGO", ont = "BP", keyType = "SYMBOL", OrgDb = org.Mm.eg.db)
+#dotplot(FLFL_CL1_GO)
+
+#CL1_CL19_overlap_GO <- compareCluster(geneList_CL1_CL19, fun = "enrichGO", ont = "BP", keyType = "SYMBOL", OrgDb = org.Mm.eg.db)
+#dotplot(CL1_CL19_overlap_GO)
+
+CL1_CL19_DEGs_GO <- enrichGO(CL1_CL19_DEGs, ont = "BP", keyType = "SYMBOL", OrgDb = org.Mm.eg.db)
+dotplot(CL1_CL19_DEGs_GO)
+
+CL1_CL19_down_GO <- enrichGO(CL1_CL19_down, ont = "BP", keyType = "SYMBOL", OrgDb = org.Mm.eg.db)
+dotplot(CL1_CL19_down_GO)
+```
+Compare to Linehan RNA-seq data set 
+
+Added a target column to Linehan to denote whether a Foxa2 target.
+```{r}
+Linehan_Tumour_Normal <- read.csv("C:/Users/cjr78/OneDrive - University of Cambridge/Frezza/Data/RNA-seq/Human_FH_KO/Linehan_Tumour_Normal.csv", header=TRUE, row.names=1)
+
+EnhancedVolcano(Linehan_Tumour_Normal, lab = NA, x = 'log2FoldChange', y = 'padj', col = c("grey", "grey", "grey", "red"), FCcutoff = 0.5, pCutoff = 0.05, raster = T, title = NULL, subtitle = NULL, legendPosition = "right")
+```
+
+```{r}
+keyvals <- ifelse(Linehan_Tumour_Normal$Target > 0.5, 'red', ifelse(Linehan_Tumour_Normal$Target < 0.5, 'grey', 'grey'))
+    keyvals[is.na(keyvals)] <- 'grey'
+    names(keyvals)[keyvals == 'red'] <- 'Foxa2 target gene'
+```
+
+
+```{r}
+EnhancedVolcano(Linehan_Tumour_Normal, lab = NA, x = 'log2FoldChange', y = 'padj', col = c("grey", "grey", "grey", "red"), FCcutoff = 0.5, pCutoff = 0.05, raster = T, title = NULL, subtitle = NULL, legendPosition = "right", colCustom = keyvals)
+
+```
+
