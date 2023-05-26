@@ -35,7 +35,7 @@ samtools index $INFILE.mapped.q1.bam
 samtools view $INFILE.mapped.q1.bam chr1 chr2 chr3 chr4 chr5 chr6 chr7 chr8 chr9 chr10 chr11 chr12 chr13 chr14 chr15 chr16 chr17 chr18 chr19 chrX -o $INFILE.final.bam
 samtools index $INFILE.final.bam
 
-featureCounts -T $NSLOTS -t exon -g gene_id -s 2 -a /rds/user/cjr78/hpc-work/References/Mus_musculus/UCSC/mm10/Annotation/Genes/genes.gtf -o siFoxa2_counts_mm10.txt \
+featureCounts -t exon -g gene_id -s 2 -a /rds/user/cjr78/hpc-work/References/Mus_musculus/UCSC/mm10/Annotation/Genes/genes.gtf -o siFoxa2_counts_mm10.txt \
 /rds/user/cjr78/hpc-work/RNA-seq/siFoxa2/STAR/1/FLFL_siNT_1_S1_R1_001.final.bam \
 /rds/user/cjr78/hpc-work/RNA-seq/siFoxa2/STAR/2/FLFL_siNT_2_S2_R1_001.final.bam \
 /rds/user/cjr78/hpc-work/RNA-seq/siFoxa2/STAR/3/FLFL_siNT_3_S3_R1_001.final.bam \
