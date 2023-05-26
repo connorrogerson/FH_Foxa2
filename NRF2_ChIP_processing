@@ -1,0 +1,42 @@
+INFILE=`awk "NR==$SLURM_ARRAY_TASK_ID" /rds/user/cjr78/rds-taipalelabconnor-zjrDKczSPmE/Nrf2/samplesheet.txt`
+
+cd fastq/trimmed
+
+trimmomatic PE -threads $SLURM_NTASKS -phred33 /rds/user/cjr78/hpc-work/Frezza/ChIP/Nrf2/fastq/bastet2.ccg.uni-koeln.de/downloads/NGS_AP02_cfrezza_A006850289/raw/${INFILE}_R1_001.fastq.gz /rds/user/cjr78/hpc-work/Frezza/ChIP/Nrf2/fastq/bastet2.ccg.uni-koeln.de/downloads/NGS_AP02_cfrezza_A006850289/raw/${INFILE}_R2_001.fastq.gz ${INFILE}_R1_trimmed.fastq.gz ${INFILE}_R1_failed.fastq.gz ${INFILE}_R2_trimmed.fastq.gz ${INFILE}_R2_failed.fastq.gz ILLUMINACLIP:/rds/user/cjr78/hpc-work/Frezza/scripts/CCG_adaptors.fa:2:30:10:1:true LEADING:5 TRAILING:5 SLIDINGWINDOW:4:15 MINLEN:30 
+
+cd ../../bowtie
+mkdir $INFILE
+cd $INFILE
+
+bowtie2 -p $SLURM_JOB_NUM_NODES -x /rds/user/cjr78/hpc-work/Frezza/References/Mus_musculus/UCSC/mm10/Sequence/Bowtie2Index/genome -1 /rds/user/cjr78/rds-taipalelabconnor-zjrDKczSPmE/Nrf2/fastq/trimmed/${INFILE}_R1_trimmed.fastq.gz -2 /rds/user/cjr78/rds-taipalelabconnor-zjrDKczSPmE/Nrf2/fastq/trimmed/${INFILE}_R2_trimmed.fastq.gz -S ${INFILE}.sam
+
+samtools view -b -F 4 -f 2 -q30 --threads $SLURM_JOB_NUM_NODES -o ${INFILE}.bam ${INFILE}.sam
+#convert to bam
+#-b ensures a bam output
+#-F 4  ensures only mapped reads are carried over (-f 2 in other instances indicates to keep correctly paired reads)
+#q30 only take good quality reads
+
+#remove blacklist
+intersectBed -v -abam $INFILE.bam -b /rds/user/cjr78/hpc-work/Frezza/scripts/mm10.blacklist.bed > ${INFILE}_blacklist.bam
+
+#sort bam
+samtools sort ${INFILE}_blacklist.bam > ${INFILE}_blacklist_sorted.bam
+
+#remove duplicates
+
+picard MarkDuplicates INPUT=${INFILE}_blacklist_sorted.bam OUTPUT=${INFILE}_blacklist_sorted_markeddup.bam METRICS_FILE=${INFILE}_blacklist_sorted_dup_stats.txt
+
+#sort
+samtools sort ${INFILE}_blacklist_sorted_markeddup.bam > ${INFILE}_final.bam
+
+samtools index ${INFILE}_final.bam
+
+rm *.sam
+rm *_blacklist*.bam
+rm *_blacklist*.bam.bai
+
+cd macs2
+mkdir $INFILE
+cd $INFILE
+
+macs2 callpeak -t /rds/project/rds-zjrDKczSPmE/Nrf2/bowtie/$INFILE/*final.bam -c /rds/project/rds-zjrDKczSPmE/Nrf2/bowtie/A006850289_201263_S66_L000/A006850289_201263_S66_L000_final.bam -f BAMPE -n $INFILE --outdir /rds/project/rds-zjrDKczSPmE/Nrf2/macs2/$INFILE -g mm -q 0.01 --SPMR -B --keep-dup all --call-summits
